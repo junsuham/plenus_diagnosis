@@ -60,6 +60,10 @@
     // fbq('init', META_PIXEL_ID); fbq('track', 'PageView');
     function trackMeta(eventName){ if(typeof window.fbq==='function') window.fbq('track', eventName); }
     let index=0,answers=[],startedAt=0;
+    let submissionInFlight=false,submissionCompleted=false;
+    const submissionId=(globalThis.crypto&&typeof globalThis.crypto.randomUUID==='function')
+      ?globalThis.crypto.randomUUID()
+      :`diag-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo({top:0,behavior:'smooth'})}
     function startDiagnosis(){startedAt=Date.now();trackMeta('ViewContent');show('quiz');renderQuestion()}
     function renderQuestion(){const x=questions[index], saved=answers[index];document.getElementById('progress').style.width=((index+1)/questions.length*100)+'%';document.getElementById('questionBox').innerHTML=`<div class="q-meta">${index+1} / ${questions.length} · ${x.area}</div><h2 class="question">${x.q}</h2><p class="hint">답변을 선택하면 다음 문항으로 자동 이동합니다.</p><div class="choices">${x.a.map((t,i)=>`<button class="choice ${saved===i?'selected':''}" type="button" data-choice="${i}">${t}</button>`).join('')}</div>`;document.getElementById('prev').style.visibility=index?'visible':'hidden'}
@@ -71,7 +75,7 @@
     document.getElementById('prev').addEventListener('click',previousQuestion);
     document.getElementById('questionBox').addEventListener('click',function(e){const choice=e.target.closest('[data-choice]');if(choice)choose(Number(choice.dataset.choice))});
     document.getElementById('leadForm').addEventListener('submit',submitLead);
-    async function submitLead(e){e.preventDefault();const form=e.currentTarget;const payload={formType:'managementDiagnosis',submittedAt:new Date().toISOString(),startedAt,website:'',academyName:document.getElementById('academyName').value.trim(),contact:document.getElementById('contact').value.trim(),interests:[...document.querySelectorAll('.interest input:checked')].map(input=>input.value),...diagnosisResult};if(SHEET_WEB_APP_URL.startsWith('PASTE_')){alert('Google Apps Script 웹 앱 주소를 먼저 설정해주세요.');return}try{await fetch(SHEET_WEB_APP_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});trackMeta('CompleteRegistration');form.style.display='none';document.querySelector('.interest').style.display='none';document.getElementById('submitted').style.display='block'}catch(error){alert('전송 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.')}}
+    async function submitLead(e){e.preventDefault();if(submissionInFlight||submissionCompleted)return;const form=e.currentTarget;const button=form.querySelector('button[type="submit"]');const originalLabel=button.textContent;const payload={submissionId,formType:'managementDiagnosis',submittedAt:new Date().toISOString(),startedAt,website:'',academyName:document.getElementById('academyName').value.trim(),contact:document.getElementById('contact').value.trim(),interests:[...document.querySelectorAll('.interest input:checked')].map(input=>input.value),...diagnosisResult};if(SHEET_WEB_APP_URL.startsWith('PASTE_')){alert('Google Apps Script 웹 앱 주소를 먼저 설정해주세요.');return}submissionInFlight=true;button.disabled=true;button.textContent='저장 중입니다…';try{await fetch(SHEET_WEB_APP_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});submissionCompleted=true;trackMeta('CompleteRegistration');form.style.display='none';document.querySelector('.interest').style.display='none';document.getElementById('submitted').style.display='block'}catch(error){submissionInFlight=false;button.disabled=false;button.textContent=originalLabel;alert('전송 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.')}}
   </script>
 </body>
 </html>
