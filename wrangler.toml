@@ -3,7 +3,4 @@ compatibility_date = "2026-08-31"
 
 [assets]
 directory = "./"
-
-[[routes]]
-pattern = "diagnosis.plenusedu.com"
-custom_domain = true
+not_found_handling = "single-page-application"
